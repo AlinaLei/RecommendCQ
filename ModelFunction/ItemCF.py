@@ -10,23 +10,26 @@ class CommonLike():
         self.df = df
 
     ###按照用户ID来进行物品的一个汇总，生成一个用户分组后的物品列表
-    def create_item_list_by_user(self,df, user_name, item_name):
+    def create_item_list_by_user(self, user_name, item_name):
         """
-        df: DataFrame数据源
-        user_name: 按照用户列名来划分
-        item_name: 对应的物品列名比如是物品ID
-        return: 返回结果为按照用户ID 和对应的物品ID列表的字典形式
+        :param df: DataFrame数据源
+        :param user_name: 按照用户列名来划分
+        :param item_name: 对应的物品列名比如是物品ID
+        :return : 返回结果为按照用户ID 和对应的物品ID列表的字典形式
         """
         res = {}
-        for i in df.itertuples():
+        item_list = []
+        for i in self.df.itertuples():
             res.setdefault(getattr(i, user_name), []).append(getattr(i, item_name))
-        return res
+        for i in res.keys():
+            item_list.append(res[i])
+        return item_list
 
     def create_item_matrics(self,items, item_len, item_name_list):
         """
-        items 物品集合
-        item_len 总物品数
-        return : 返回物品同现矩阵，此处实际返回为DataFrame类型
+        :param items 物品集合
+        :param item_len 总物品数
+        :return : 返回物品同现矩阵，此处实际返回为DataFrame类型
         """
         item_matrix = pd.DataFrame(np.zeros((item_len, item_len)), index=item_name_list, columns=item_name_list)
         for im in items:
@@ -40,7 +43,8 @@ class CommonLike():
 
     def item_similarity(self,item_matrix):
         """
-        计算物品相似度矩阵
+        计算物品相似度矩阵 这里的计算物品相似度公式为：
+        分子为同时购买物品i和j的用户数，分母为购买物品i的用户数与购买物品j的用户数的乘积开根号
         :param item_matrix:  物品同现矩阵
         :return: 物品相似度矩阵，为DataFrame类型
         """
@@ -53,29 +57,71 @@ class CommonLike():
                 res.iloc[j + i, i] = res.iloc[i, j + i]
         return res
 
-def ItemSimilarity(self,df):
-    """"""
-    C = dict() #物品两两同时被购买次数
-    W = dict() #物品相似度矩阵
-    N = dict() #物品被购买用户数
-    for u , items in df.items():
-        for i in items.keys():
-            if i not in N.keys():
-                N[i] = 0
-            N[i] +=1
-            for j in items.keys():
-                if i==j:
-                    continue
-                if i not in C.keys():
-                    C[i] = dict()
-                if j not in C[i].keys():
-                    C[i][j]=0
-                C[i][j]+=1
-    for i ,related_items in C.items():
-        if i not in W.keys():
-            W[i] = dict()
-        for j , cij in related_items.items():
-            W[i][j] = cij /math.sqrt(N[i]*N[j])
-    print("C is :",C)
-    print("N is :",N)
-    return W
+    ##生成用户对物品的评分表
+    def user_item_score(self, user_name, item_name, score_name):
+        """
+        :param df:数据源
+        :param user_name:  用户列名
+        :param item_name:  物品列名
+        :param score_name: 评分列名
+        :return :     返回用户对物品的评分矩阵,此处实际返回为DataFrame类型,行为用户，列为item
+        """
+        user_names = self.df[user_name].unique()
+        item_names = self.df[item_name].unique()
+        user_n = len(user_names)
+        item_n = len(item_names)
+        zero_test = pd.DataFrame(np.zeros((user_n, item_n)), index=user_names, columns=item_names)
+        for i in self.df.itertuples():
+            zero_test.loc[getattr(i, user_name), getattr(i, item_name)] = getattr(i, score_name)
+        return zero_test
+
+    def base_cosine_similarity(self,item_matrix,user_score):
+        """
+        这里引入用户评分数据，进行基于余弦的相似度计算
+        分子为用户k对物品i的评分与物品j的评分的乘积进行累加按照用户来，分母为用户k对物品i的评分评分累加开根号乘以用户k对物品j的评分评分累加开根号
+        :param item_matrix: 物品同现矩阵
+        :param user_score: 用户评分矩阵
+        :return res: 基于评分矩阵的 相似度矩阵
+        """
+        res = pd.DataFrame(np.zeros(item_matrix.shape), index=item_matrix.index, columns=item_matrix.columns)
+
+        sum_score = lambda x, y: sum(x*y)
+        for i in range(item_matrix.shape[0]):
+            for j in range(item_matrix.shape[0] - i):
+                result1 = 0.0
+                result2 = 0.0
+                result3 = 0.0
+                #print('columns is :',item_matrix.columns[i])
+                result1 += sum_score(user_score.loc[:,item_matrix.columns[i]] ,user_score.loc[:,item_matrix.columns[j+i]])
+                result2 += sum_score(user_score.loc[:,item_matrix.columns[i]] ,user_score.loc[:,item_matrix.columns[i]])
+                result3 += sum_score(user_score.loc[:,item_matrix.columns[j+i]] ,user_score.loc[:,item_matrix.columns[j+i]])
+                res.iloc[i, j + i] =round( result1 /( math.sqrt(result2)* math.sqrt(result3)),4)  # 保留四位小数
+                res.iloc[j + i, i] = res.iloc[i, j + i]
+        return res
+
+    def base_cosine_alpha_similarity(self,item_matrix,user_score,alpha=0.3):
+        """
+        这里引入用户评分数据和热门物品惩罚条件，
+        分子为用户k对物品i的评分与物品j的评分的乘积进行累加按照用户来，分母为用户k对物品i的评分评分累加开根号乘以用户k对物品j的评分评分累加开根号
+        :param item_matrix: 物品同现矩阵
+        :param user_score: 用户评分矩阵
+        :return res: 基于评分矩阵的 相似度矩阵
+        """
+        res = pd.DataFrame(np.zeros(item_matrix.shape), index=item_matrix.index, columns=item_matrix.columns)
+
+        sum_score = lambda x, y: sum(x * y)
+        for i in range(item_matrix.shape[0]):
+            for j in range(item_matrix.shape[0] - i):
+                result1 = 0.0
+                result2 = 0.0
+                result3 = 0.0
+                # print('columns is :',item_matrix.columns[i])
+                result1 += sum_score(user_score.loc[:, item_matrix.columns[i]],
+                                     user_score.loc[:, item_matrix.columns[j + i]])
+                result2 += sum_score(user_score.loc[:, item_matrix.columns[i]],
+                                     user_score.loc[:, item_matrix.columns[i]])
+                result3 += sum_score(user_score.loc[:, item_matrix.columns[j + i]],
+                                     user_score.loc[:, item_matrix.columns[j + i]])
+                res.iloc[i, j + i] = round(result1 / (math.pow(result2,alpha) * math.pow(result3,1-alpha)), 4)  # 保留四位小数
+                res.iloc[j + i, i] = res.iloc[i, j + i]
+        return res
