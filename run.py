@@ -13,5 +13,6 @@ if __name__ == '__main__':
         'E':{'i3':1,'i5':1},
         'F':{'i2':1,'i4':1}
     }
-    W= ItemSimilarity(Train_data)
+    W= CommonLike(Train_data)
+
     print(W)
