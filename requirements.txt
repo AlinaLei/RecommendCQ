@@ -1,0 +1,9 @@
+flask_restful
+flask
+flask_jwt_extended
+pandas
+requests
+redis
+flask_cors
+SQLAlchemy
+xlrd
