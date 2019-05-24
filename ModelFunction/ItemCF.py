@@ -5,7 +5,7 @@ import pandas as pd
 import math
 
 #基于共同喜欢物品计算相似度
-class CommonLike():
+class ItemCommonLike():
     def __init__(self,df):
         self.df = df
 
@@ -25,7 +25,7 @@ class CommonLike():
             item_list.append(res[i])
         return item_list
 
-    def create_item_matrics(self,items, item_len, item_name_list):
+    def create_item_matrics(self, items, item_len, item_name_list):
         """
         :param items 物品集合
         :param item_len 总物品数
@@ -125,3 +125,27 @@ class CommonLike():
                 res.iloc[i, j + i] = round(result1 / (math.pow(result2,alpha) * math.pow(result3,1-alpha)), 4)  # 保留四位小数
                 res.iloc[j + i, i] = res.iloc[i, j + i]
         return res
+
+    # 生成推荐结果
+    def get_itemCF(self,item_matrix, user_score,user_id,K,col_name='rank'):
+        """
+        item_matrix: 物品相似度矩阵，DataFrame类型
+        user_score:  用户评分矩阵，DataFrame类型,某一个指定的用户的评分矩阵
+        col_name:    用户给新列指定的列名
+        k : 用来指定返回TOP K 个物品
+        return:      用户对对应的物品的兴趣值 得到的类型为DataFrame类型，
+        """
+        user_score = user_score.loc[user_id, :]
+
+        columns = item_matrix.columns
+        user_score = user_score[columns]
+        # 过滤掉用户曾经看过的电影
+        user_movie = user_score[user_score.values == 0].index
+
+        item_matrix = np.mat(item_matrix.as_matrix(columns=None))
+        user_score = np.mat(user_score.as_matrix(columns=None)).T
+        result_score = item_matrix * user_score
+        result = pd.DataFrame(result_score, index=columns, columns=['rating'])
+        result[col_name] = columns
+        result = result.sort_values(by='rating', ascending=False)
+        return result[result[col_name].isin(user_movie)].head(K)

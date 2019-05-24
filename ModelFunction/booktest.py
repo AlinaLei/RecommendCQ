@@ -1,7 +1,7 @@
 # /usr/bin/env python3
 # -*- coding:utf8 -*-
 import math
-
+import collections
 def handle_data(df, user_col, item_col, rating_col):
     """
     :param df: DataFrame数据源
@@ -117,4 +117,12 @@ def Recommend(df, user_id, W, K):
             if j in ru:
                 continue
             rank[j]+= pi*wj
-    return rank 
+    return rank
+
+
+def defItemIndex(DictUser):
+    DictItem = collections.defaultdict(collections.defaultdict)
+    for key in DictUser:
+        for i in DictUser[key]:
+            DictItem[i[0]][key] = i[1]
+    return DictItem
