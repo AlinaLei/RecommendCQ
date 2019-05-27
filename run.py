@@ -18,6 +18,7 @@ if __name__ == '__main__':
     ress = W.get_itemCF(res, user_score, 'A', 3)
     print("the mine is:\n", ress)
     """
+
     #基于用户的协同过滤
     W=UserCommonLike(test)
     user_list = W.create_user_list_by_item('user','item')
@@ -25,11 +26,12 @@ if __name__ == '__main__':
     user_metrics = W.create_user_matrics(user_list, len(user_name_list),user_name_list)
 
     user_score =W.user_item_score('user', 'item', 'rating')
+    """
     res = W.item_similarity(user_metrics)
 
     result = W.get_userCF( res, user_score, 'A', 3)
     print(" user list is :\n",result )
-
+    """
     result = {'A': {'1': 3, '2': 2, '3': 3, '4': 4},
               'B': {'1': 3, '2': 5},
               'C': {'4': 5, '5': 3, '3': 2, '2': 4},
@@ -37,8 +39,10 @@ if __name__ == '__main__':
               'E': {'5': 2, '2': 5, '3': 3, '4': 2},
               'F': {'1': 4, '6': 5}
               }
+    book_user_score = np.mat(user_score.as_matrix(columns=None))
+    book_result = recommend(book_user_score ,1, estMethod=svdEst)
     #commom = defItemIndex(result)
-    #print(" the right result is :\n",commom)
+    print(" the right result is :\n",book_result)
 
     #data_res = handle_data(test, 'user', 'item', 'rating')
     #print("data result is :",data_res)

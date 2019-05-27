@@ -2,6 +2,8 @@
 # -*- coding:utf8 -*-
 import math
 import collections
+import numpy as np
+
 def handle_data(df, user_col, item_col, rating_col):
     """
     :param df: DataFrame数据源
@@ -119,10 +121,56 @@ def Recommend(df, user_id, W, K):
             rank[j]+= pi*wj
     return rank
 
-
 def defItemIndex(DictUser):
     DictItem = collections.defaultdict(collections.defaultdict)
     for key in DictUser:
         for i in DictUser[key]:
             DictItem[i[0]][key] = i[1]
     return DictItem
+
+def cosSim(a,b):
+    """
+
+    :param a:  向量a
+    :param b:  向量b
+    :return:
+    """
+    return a.dot(b)/(np.linalg.norm(a,ord=1)*np.linalg.norm(b,ord=1))
+
+#基于SVD的评分估计
+##dataMat 是输入矩阵 simMeas是相似度计算函数 user和item是待打分的用户和item对
+def svdEst(userData, xformedItems, user, simMeas , item):
+    n = xformedItems.shape[0]
+    simTotal = 0.0 ;ratSimTotal = 0.0
+    for j in range(n):
+        userRating = userData[:j]
+        if (userRating ==0 or j ==item):
+            continue
+        similarity = simMeas(xformedItems[item,:].T,xformedItems[j,:].T )
+        print("the %d and %d similarity is :%F"%(item , j ,similarity))
+        simTotal += similarity
+        ratSimTotal += similarity*userRating
+    if simTotal ==0 :
+        return 0
+    else:
+        return ratSimTotal/simTotal
+
+def recommend(dataMat, user, N=3, simMeas = cosSim, estMethod = svdEst):
+    U, Sigma, VT = np.linalg.svd(dataMat)
+    Sig4 = np.mat(np.eye(5)*Sigma[:5])
+    xformedItems = dataMat.T *U[:,:5]*Sig4.I
+    print("xformedItems= ",xformedItems)
+    print("xformedItems 行列数",xformedItems.shape)
+
+    unratedItems = np.nonzero(dataMat[user,:].A==0)[1]
+    print('dataMat[user,:].A= \n',dataMat[user,:].A)
+    print("nonzero(dataMat[user,:].A==0 结果为：\n" ,np.nonzero(dataMat[user,:].A==0 ))
+
+    if len(unratedItems) ==0 :
+        return ("you rated everything")
+    itemScores = []
+    for item in unratedItems:
+        print("item = \n ",item)
+        estimatedScore = estMethod(dataMat[user,:],xformedItems ,user,simMeas ,item)
+        itemScores.append((item,estimatedScore))
+    return sorted(itemScores ,key=lambda jj:jj[1],reverse=True)[:N]
