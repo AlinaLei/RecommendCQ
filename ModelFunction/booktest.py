@@ -135,7 +135,9 @@ def cosSim(a,b):
     :param b:  向量b
     :return:
     """
-    return a.dot(b)/(np.linalg.norm(a,ord=1)*np.linalg.norm(b,ord=1))
+    num = float(a.T*b)
+    denom  = np.linalg.norm(a)*np.linalg.norm(b)
+    return 0.5+0.5*(num/denom)
 
 #基于SVD的评分估计
 ##dataMat 是输入矩阵 simMeas是相似度计算函数 user和item是待打分的用户和item对
