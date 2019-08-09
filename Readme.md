@@ -29,4 +29,4 @@ requirements.txt 用来存放需要的配置包清单
 
 run.py 运行主程序
 
-记得买药
+记得买药 *2
